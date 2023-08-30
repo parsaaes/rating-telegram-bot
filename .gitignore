@@ -40,7 +40,11 @@
 # *.iml
 # *.ipr
 
+config.yaml
+config.yml
+
 # CMake
+
 cmake-build-*/
 
 # Mongo Explorer plugin
