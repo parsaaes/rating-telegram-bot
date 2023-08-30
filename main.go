@@ -23,7 +23,7 @@ func main() {
 		logrus.Fatal("error connecting to db: %s", err.Error())
 	}
 
-	if err := db.AutoMigrate(model.Category{}); err != nil {
+	if err := db.AutoMigrate(model.Category{}, model.Item{}); err != nil {
 		logrus.Fatal("error running migrations: %s", err.Error())
 	}
 

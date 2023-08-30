@@ -2,6 +2,7 @@ package telegram
 
 import (
 	"strconv"
+	"strings"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/sirupsen/logrus"
@@ -48,16 +49,35 @@ func (b *Bot) Run() {
 			case "create":
 				rawArgs := update.Message.CommandArguments()
 
-				if len(rawArgs) < 1 {
+				args := strings.Fields(rawArgs)
+
+				if len(args) < 1 {
 					continue
 				}
 
 				if err := b.categoryRepo.Create(&model.Category{
 					GroupID: strconv.FormatInt(update.Message.Chat.ID, 10),
-					Name:    rawArgs,
+					Name:    args[0],
 				}); err != nil {
 					logrus.Errorf("error creating category: %s", err.Error())
 				}
+			case "add":
+				rawArgs := update.Message.CommandArguments()
+
+				args := strings.Fields(rawArgs)
+
+				if len(args) < 2 {
+					continue
+				}
+
+				//category := args[0]
+				title := ""
+
+				for i := 1; i < len(args); i++ {
+					title += args[i]
+				}
+
+				title = strings.TrimSpace(title)
 			}
 		}
 	}
