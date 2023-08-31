@@ -188,7 +188,7 @@ func (b *Bot) Run() {
 						titleForButton := category.Name+" "+item.Title
 
 						if len(titleForButton) > 50 {
-							titleForButton = string([]rune(titleForButton)[:20])
+							titleForButton = string([]rune(titleForButton)[:20]) + "..."
 						}
 
 						rows = append(rows, tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData(titleForButton, requestRateKeyboardCallback+strconv.FormatUint(uint64(item.ID), 10)+":"+titleForButton)))
