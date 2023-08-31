@@ -187,7 +187,7 @@ func (b *Bot) Run() {
 					for item := range items {
 						titleForButton := category.Name+" "+item.Title
 
-						if len(titleForButton) > 50 {
+						if len(titleForButton) > 25 {
 							titleForButton = string([]rune(titleForButton)[:20]) + "..."
 						}
 
