@@ -3,7 +3,7 @@ package config
 import "github.com/spf13/viper"
 
 type Config struct {
-	Debug bool `mapstructure:"debug"`
+	Debug bool   `mapstructure:"debug"`
 	Token string `mapstructure:"token"`
 }
 

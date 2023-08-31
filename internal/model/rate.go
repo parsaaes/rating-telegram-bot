@@ -7,16 +7,16 @@ import (
 
 type Rate struct {
 	gorm.Model
-	Rater string `gorm:"uniqueIndex:unique_rater_item_id"`
-	ItemID uint `gorm:"uniqueIndex:unique_rater_item_id"`
-	Rate float64
-	Item Item
+	Rater  string `gorm:"uniqueIndex:unique_rater_item_id"`
+	ItemID uint   `gorm:"uniqueIndex:unique_rater_item_id"`
+	Rate   float64
+	Item   Item
 }
 
 type RateToItem struct {
-	Item Item `gorm:"embedded"`
+	Item     Item     `gorm:"embedded"`
 	Category Category `gorm:"embedded"`
-	Rate Rate `gorm:"embedded"`
+	Rate     Rate     `gorm:"embedded"`
 }
 
 type RateRepo interface {
@@ -28,7 +28,7 @@ type SQLRateRepo struct {
 	DB *gorm.DB
 }
 
-func (srr *SQLRateRepo) Save(rate *Rate) error  {
+func (srr *SQLRateRepo) Save(rate *Rate) error {
 	return srr.DB.Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "rater"}, {Name: "item_id"}},
 		DoUpdates: clause.AssignmentColumns([]string{"rate", "updated_at"}),

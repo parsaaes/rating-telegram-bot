@@ -2,23 +2,21 @@ package telegram
 
 import (
 	"fmt"
-	"math"
 	"strconv"
 	"strings"
 
+	"github.com/forPelevin/gomoji"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/sirupsen/logrus"
 
 	"github.com/parsaaes/rating-telegram-bot/internal/model"
-
-	"github.com/forPelevin/gomoji"
 )
 
 type Bot struct {
-	bot *tgbotapi.BotAPI
+	bot          *tgbotapi.BotAPI
 	categoryRepo model.CategoryRepo
-	itemRepo model.ItemRepo
-	rateRepo model.RateRepo
+	itemRepo     model.ItemRepo
+	rateRepo     model.RateRepo
 }
 
 func New(
@@ -26,17 +24,17 @@ func New(
 	categoryRepo model.CategoryRepo,
 	itemRepo model.ItemRepo,
 	rateRepo model.RateRepo,
-	) (*Bot, error) {
+) (*Bot, error) {
 	bot, err := tgbotapi.NewBotAPI(token)
 	if err != nil {
 		return nil, err
 	}
 
 	return &Bot{
-		bot: bot,
+		bot:          bot,
 		categoryRepo: categoryRepo,
-		itemRepo: itemRepo,
-		rateRepo: rateRepo,
+		itemRepo:     itemRepo,
+		rateRepo:     rateRepo,
 	}, nil
 }
 
@@ -74,14 +72,14 @@ func (b *Bot) Run() {
 			switch update.Message.Command() {
 			case "create":
 				if len(argsByDash) < 1 {
-					_ = b.replay("invalid format. the correct format is " + create, update)
+					_ = b.replay("invalid format. the correct format is "+create, update)
 
 					continue
 				}
 
 				icon := ""
 
-				if len(argsByDash) > 1  {
+				if len(argsByDash) > 1 {
 					emojies := gomoji.FindAll(strings.TrimSpace(argsByDash[1]))
 					if len(emojies) > 0 {
 						icon = emojies[0].Character
@@ -99,7 +97,7 @@ func (b *Bot) Run() {
 				}
 			case "add":
 				if len(argsByDash) < 2 {
-					_ = b.replay("invalid format. the correct format is " + add, update)
+					_ = b.replay("invalid format. the correct format is "+add, update)
 
 					continue
 				}
@@ -126,48 +124,6 @@ func (b *Bot) Run() {
 				}
 
 				_ = b.replay(fmt.Sprintf("✅\n %s added to %s.", title, categoryName), update)
-			case "rate":
-				if len(argsByDash) < 2 {
-					_ = b.replay("invalid format. the correct format is " + rate, update)
-
-					continue
-				}
-
-				itemName := argsByDash[0]
-				scoreStr := argsByDash[1]
-
-				score, err := strconv.ParseFloat(scoreStr, 64)
-				if err != nil {
-					logrus.Errorf("error converting the rating string: %s", err.Error())
-
-					continue
-				}
-
-				if !((0 <= score && score <= 5) && math.Mod(score, 0.25) == 0) {
-					_ = b.replay("Your score should be a multiple of 0.25 between 0 and 5.", update)
-
-					continue
-				}
-
-				itemID, err := b.itemRepo.FindIDByTitleAndGroupID(itemName, groupID)
-				if err != nil {
-					logrus.Errorf("error getting the item id: %s", err.Error())
-
-					continue
-				}
-
-				if err := b.rateRepo.Save(&model.Rate{
-					Rater:  update.Message.From.UserName,
-					ItemID: itemID,
-					Rate:   score,
-				}); err != nil {
-					logrus.Errorf("error saving the rate: %s", err.Error())
-
-					continue
-				}
-
-				_ = b.replay(fmt.Sprintf("✅ You rated %s:\n%s from 5.",
-					itemName, strconv.FormatFloat(score, 'f', 2, 64)), update)
 			case "list":
 				list, err := b.rateRepo.List(groupID)
 				if err != nil {
@@ -212,16 +168,168 @@ func (b *Bot) Run() {
 				}
 
 			case "help":
-				msg := fmt.Sprintf("👋 *here's the list of commands*:\n\n%s - *create a new category*\n\n%s - *add a new title to a category*\n\n%s - *rate a title*\n\n%s - *list all items*\n",
-					create, add, rate, list)
+				msg := fmt.Sprintf("👋 *here's the list of commands*:\n\n%s - *create a new category*\n\n%s - *add a new title to a category*\n\n%s - *list titles to score*\n\n%s - *list rates*\n",
+					create, add, titles, list)
 
 				_ = b.replay(msg, update)
+
+			case "titles":
+				list, err := b.rateRepo.List(groupID)
+				if err != nil {
+					logrus.Errorf("error getting items: %s", err.Error())
+
+					continue
+				}
+
+				var rows [][]tgbotapi.InlineKeyboardButton
+
+				for category, items := range list {
+					for item := range items {
+						rows = append(rows, tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData(category.Name+" "+item.Title, requestRateKeyboardCallback+strconv.FormatUint(uint64(item.ID), 10)+":"+category.Name+" "+item.Title)))
+					}
+				}
+
+				if len(rows) == 0 {
+					_ = b.replay("no title found.", update)
+				}
+
+				var keyboard = tgbotapi.NewInlineKeyboardMarkup(
+					rows...,
+				)
+
+				msg := tgbotapi.NewMessage(update.Message.Chat.ID, "list of titles:")
+
+				msg.ReplyMarkup = keyboard
+
+				if _, err := b.bot.Send(msg); err != nil {
+					logrus.Errorf("error sending titles keyboard: %s", err.Error())
+				}
+			}
+		} else if update.CallbackQuery != nil {
+			if strings.HasPrefix(update.CallbackQuery.Data, requestRateKeyboardCallback) {
+				callBackDataArgs := strings.Split(strings.TrimPrefix(update.CallbackQuery.Data, requestRateKeyboardCallback), ":")
+
+				if len(callBackDataArgs) != 2 {
+					logrus.Errorf("callback data args are not correct: %s", update.CallbackQuery.Data)
+
+					_ = b.buttonFailed(update)
+
+					continue
+				}
+
+				itemIDStr := callBackDataArgs[0]
+				name := callBackDataArgs[1]
+
+				itemID, err := strconv.Atoi(itemIDStr)
+				if err != nil {
+					logrus.Errorf("error getting item id from callback: %s", err.Error())
+
+					_ = b.buttonFailed(update)
+
+					continue
+				}
+
+				var rows [][]tgbotapi.InlineKeyboardButton
+
+				for i := 0; i < 5; i++ {
+					var row []tgbotapi.InlineKeyboardButton
+
+					for _, p := range []string{"", ".25", ".5", ".75"} {
+						score := strconv.Itoa(i) + p
+
+						row = append(row, tgbotapi.NewInlineKeyboardButtonData(score, rateCallbackFmt(score, itemID)))
+					}
+
+					rows = append(rows, row)
+				}
+
+				rows = append(rows, []tgbotapi.InlineKeyboardButton{
+					tgbotapi.NewInlineKeyboardButtonData("5", rateCallbackFmt("5", itemID)),
+				})
+
+				msg := tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, "choose your score for "+name+":")
+
+				msg.ReplyMarkup = tgbotapi.NewInlineKeyboardMarkup(rows...)
+
+				callback := tgbotapi.NewCallback(update.CallbackQuery.ID, "choose your score")
+				if _, err := b.bot.Request(callback); err != nil {
+					logrus.Errorf("error responding to callback: %s", err.Error())
+
+					continue
+				}
+
+				if _, err := b.bot.Send(msg); err != nil {
+					logrus.Errorf("error sending score keyboard: %s", err.Error())
+
+					continue
+				}
+			} else if strings.HasPrefix(update.CallbackQuery.Data, rateCallback) {
+				callbackDataArgs := strings.Split(strings.TrimPrefix(update.CallbackQuery.Data, rateCallback), ":")
+
+				if len(callbackDataArgs) != 2 {
+					logrus.Errorf("error in callback data args: %s", update.CallbackQuery.Data)
+
+					_ = b.buttonFailed(update)
+
+					continue
+				}
+
+				scoreStr := callbackDataArgs[0]
+				itemIDStr := callbackDataArgs[1]
+
+				score, err := strconv.ParseFloat(scoreStr, 64)
+				if err != nil {
+					logrus.Errorf("error converting score from callback: %s", err.Error())
+
+					_ = b.buttonFailed(update)
+
+					continue
+				}
+
+				itemID, err := strconv.ParseUint(itemIDStr, 10, 64)
+				if err != nil {
+					logrus.Errorf("error converting id from callback: %s", err.Error())
+
+					_ = b.buttonFailed(update)
+
+					continue
+				}
+
+				if err := b.rateRepo.Save(&model.Rate{
+					Rater:  update.CallbackQuery.From.UserName,
+					ItemID: uint(itemID),
+					Rate:   score,
+				}); err != nil {
+					logrus.Errorf("error saving rate: %s", err.Error())
+
+					_ = b.buttonFailed(update)
+
+					continue
+				}
+
+				callback := tgbotapi.NewCallback(update.CallbackQuery.ID, "rate saved.")
+				if _, err := b.bot.Request(callback); err != nil {
+					logrus.Errorf("error responding to callback: %s", err.Error())
+
+					continue
+				}
 			}
 		}
 	}
 }
 
-func (b *Bot) replay (text string, update tgbotapi.Update) error {
+func (b *Bot) buttonFailed(update tgbotapi.Update) error {
+	callback := tgbotapi.NewCallback(update.CallbackQuery.ID, "failed")
+	if _, err := b.bot.Request(callback); err != nil {
+		logrus.Errorf("error responding to callback: %s", err.Error())
+
+		return err
+	}
+
+	return nil
+}
+
+func (b *Bot) replay(text string, update tgbotapi.Update) error {
 	msg := tgbotapi.NewMessage(update.Message.Chat.ID,
 		fmt.Sprintf(text))
 

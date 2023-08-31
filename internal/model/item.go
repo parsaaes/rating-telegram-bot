@@ -6,9 +6,9 @@ import (
 
 type Item struct {
 	gorm.Model
-	Title string `gorm:"uniqueIndex:unique_category_id_title"`
-	CategoryID uint `gorm:"uniqueIndex:unique_category_id_title"`
-	Category Category
+	Title      string `gorm:"uniqueIndex:unique_category_id_title"`
+	CategoryID uint   `gorm:"uniqueIndex:unique_category_id_title"`
+	Category   Category
 }
 
 type ItemRepo interface {
@@ -24,7 +24,7 @@ func (sir *SQLItemRepo) Create(item *Item) error {
 	return sir.DB.Create(item).Error
 }
 
-func (sir *SQLItemRepo) FindIDByTitleAndGroupID(title, groupID string) (uint, error)  {
+func (sir *SQLItemRepo) FindIDByTitleAndGroupID(title, groupID string) (uint, error) {
 	var res uint
 
 	return res, sir.DB.

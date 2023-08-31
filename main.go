@@ -7,7 +7,6 @@ import (
 	"github.com/parsaaes/rating-telegram-bot/internal/database"
 	"github.com/parsaaes/rating-telegram-bot/internal/model"
 	"github.com/parsaaes/rating-telegram-bot/internal/telegram"
-
 	"github.com/sirupsen/logrus"
 )
 
