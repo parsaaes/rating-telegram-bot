@@ -179,7 +179,7 @@ func (b *Bot) Run() {
 				msg := ""
 
 				for category, items := range list {
-					msg += category.Icon + " *" + category.Name + "*" + ":\n"
+					msg += category.Icon + " <b>" + category.Name + "</b>" + ":\n"
 
 					for item, rates := range items {
 						msg += item.Title + ":\n"
@@ -203,7 +203,7 @@ func (b *Bot) Run() {
 					msgToSend = tgbotapi.NewMessage(update.Message.Chat.ID, "no categories found. create one first.")
 				}
 
-				msgToSend.ParseMode = "markdown"
+				msgToSend.ParseMode = "html"
 
 				if _, err := b.bot.Send(msgToSend); err != nil {
 					logrus.Errorf("error sending list message: %s", err.Error())
