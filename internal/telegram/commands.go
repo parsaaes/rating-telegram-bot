@@ -8,7 +8,7 @@ const (
 	titles = "/titles"
 	list   = "/list"
 
-	requestRateKeyboardCallback = "request_rate_keyboard:"
+	requestRateKeyboardCallback = "rrk:"
 	rateCallback                = "rate:"
 )
 

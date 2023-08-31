@@ -186,12 +186,14 @@ func (b *Bot) Run() {
 				for category, items := range list {
 					for item := range items {
 						titleForButton := category.Name+" "+item.Title
+						compressedTitleForButton := category.Name+" "+item.Title
 
-						if len(titleForButton) > 25 {
-							titleForButton = string([]rune(titleForButton)[:20]) + "..."
+						if len(titleForButton) > 35 {
+							fmt.Println(titleForButton, len(titleForButton))
+							compressedTitleForButton = string([]rune(titleForButton)[:20]) + "..."
 						}
 
-						rows = append(rows, tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData(titleForButton, requestRateKeyboardCallback+strconv.FormatUint(uint64(item.ID), 10)+":"+titleForButton)))
+						rows = append(rows, tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData(titleForButton, requestRateKeyboardCallback+strconv.FormatUint(uint64(item.ID), 10)+":"+compressedTitleForButton)))
 					}
 				}
 
