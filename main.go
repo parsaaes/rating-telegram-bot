@@ -23,13 +23,21 @@ func main() {
 		logrus.Fatal("error connecting to db: %s", err.Error())
 	}
 
-	if err := db.AutoMigrate(model.Category{}, model.Item{}); err != nil {
+	if cfg.Debug {
+		db = db.Debug()
+
+		logrus.SetLevel(logrus.DebugLevel)
+	}
+
+	if err := db.AutoMigrate(model.Category{}, model.Item{}, model.Rate{}); err != nil {
 		logrus.Fatal("error running migrations: %s", err.Error())
 	}
 
 	categoryRepo := &model.SQLCategoryRepo{DB: db}
+	itemRepo := &model.SQLItemRepo{DB: db}
+	rateRepo := &model.SQLRateRepo{DB: db}
 
-	bot, err := telegram.New(cfg.Token, categoryRepo)
+	bot, err := telegram.New(cfg.Token, categoryRepo, itemRepo, rateRepo)
 	if err != nil {
 		log.Panic(err)
 	}
